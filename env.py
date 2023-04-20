@@ -77,7 +77,7 @@ class Env:
         #path_urdf = env_c.path2urdf(output_dir=".")
         #path_asset = p.loadURDF(path_urdf,useFixedBase=True)
         
-        self.path = np.array([[0,0],[0,0.5],[0,1],[0,1.5],[0,2],[0.5,2],[1,2],[1.5,2],[2,2],[2,1.5],[2,1],[2,0.5],[2,0],[1.5,0],[1,0],[0.5,0],[0,0],[0,0]])
+        self.path = np.array([[0,0],[0,0.5],[0,1],[0,1.5],[0,2],[0.5,2],[1,2],[1.5,2],[2,2],[2,1.5],[2,1],[2,0.5],[2,0],[1.5,0],[1,0],[0.5,0],[0,0],[0,0],[0,0]])
 
         #create robot
         self.robot = p.loadURDF(
@@ -143,10 +143,10 @@ class Env:
         #print(target_rew)
         vel_rew = 1/(1+abs(self.obs[2])) + 1/(1+abs(self.obs[3]))
         #print(vel_rew)
-        control_rew = 0#1/(1+abs(self.force[0])/self.mass) + 1/(1+abs(self.force[1])/self.mass)
+        control_rew = 1/(1+abs(self.force[0])/self.mass) + 1/(1+abs(self.force[1])/self.mass)
         #print(self.force)
         #print(control_rew)
-        reward = (target_rew + vel_rew + control_rew)/4
+        reward = (target_rew + vel_rew + 0.1*control_rew)/4.2
         return reward 
 
     def step(self, action): # action[zero] is the desired velocity and action[one] is the desired heading 

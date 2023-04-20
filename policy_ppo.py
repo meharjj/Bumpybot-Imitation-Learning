@@ -6,12 +6,10 @@ class Policy(torch.nn.Module):
         super(Policy, self).__init__()
         layer_sizes = [in_size,*layers]
         linear_layers = [self.layer(in_f,out_f,activation) for in_f,out_f in zip(layer_sizes,layer_sizes[1:])]
-        self.model = torch.nn.Sequential(
-            *linear_layers,
-            self.layer(layer_sizes[-1],out_size,torch.nn.Tanh) #bound [-1,1]
-            )
-        self.model_values = torch.nn.Sequential(
-            *linear_layers,
+        self.backbone = torch.nn.Sequential(*linear_layers)
+        self.action_head = torch.nn.Sequential(
+            self.layer(layer_sizes[-1],out_size,torch.nn.Tanh)) #bound [-1,1]
+        self.value_head = torch.nn.Sequential(
             torch.nn.Linear(layer_sizes[-1],1)
             )
         self.sigma = torch.nn.Parameter(0.01*torch.ones(out_size,requires_grad=False,dtype = torch.float32),requires_grad =False)
@@ -20,10 +18,10 @@ class Policy(torch.nn.Module):
 
     def forward(self,x):
         #channel first: x [N,4]
-        return self.model(x) #[N,2]
+        return self.action_head(self.backbone(x)) #[N,2]
     def get_action_and_value(self,obs, action=None):
         #print(obs.size())
-        mu = self.model(obs)
+        mu = self.action_head(self.backbone(obs))
         
         covar = self.sigma #torch.diag
         #print(covar)
@@ -32,7 +30,7 @@ class Policy(torch.nn.Module):
             action =dist.sample()
         action_logprob = dist.log_prob(action)
         entropy = dist.entropy()
-        value = self.model_values(obs)
+        value = self.value_head(self.backbone(obs))
         return action, action_logprob, entropy, value
             
 if __name__ == "__main__":

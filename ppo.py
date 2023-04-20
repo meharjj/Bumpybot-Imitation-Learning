@@ -139,7 +139,7 @@ def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_co
     return updates
         
 def PPO(env, policy, optimizer, max_steps, epochs, batch_size, n_steps=10_000,
-    vec_obs_size=6, loss_coef=0.1, ent_coef=0.1, vf_coef=0.1, clip_coef=0.2, gamma=0.99, device=device):
+    vec_obs_size=4, loss_coef=0.1, ent_coef=0.1, vf_coef=0.1, clip_coef=0.2, gamma=0.99, device=device):
     total_steps = 0
     best_rewards = 0
     while total_steps < max_steps:
@@ -160,21 +160,22 @@ def PPO(env, policy, optimizer, max_steps, epochs, batch_size, n_steps=10_000,
             rollout, total_episodic_return, end_step = collect_rollout(env, policy, n_steps, rollout, device)
             rollout = bootstrap_value(rollout, end_step, gamma, device)
         
-        if end_step < batch_size:
+        if end_step < batch_size/10:
             print("Skipping Early Termination...\n")
             continue
         print("Episode Length: {}\n".format(end_step+1))
         
         print("Training for {} Epochs".format(epochs))
         total_steps += train(env, policy, optimizer, batch_size, epochs, end_step, rollout,device=device)
-        if torch.sum(rollout["rewards"]) > best_rewards:
-            best_rewards = torch.sum(rollout["rewards"])
+        if torch.sum(rollout["rewards"]).item()/end_step > best_rewards:
+            print("saving new best model: {}".format(torch.sum(rollout["rewards"]).item()/end_step))
+            best_rewards = torch.sum(rollout["rewards"]).item()/end_step
             best_model = deepcopy(policy)
+            best_model_scripted = torch.jit.script(best_model)
+            best_model_scripted.save("rl_best_model.pt")
 
         print("\n...{}/{}".format(total_steps,max_steps))
 
-    model_scripted = torch.jit.script(policy) # export to TorchScript
-    model_scripted.save("rl_model.pt") #save TorchScript model
-    best_model_scripted = torch.jit.script(best_model) # export to TorchScript
-    best_model_scripted.save("rl_best_model.pt") #save TorchScript model
+        model_scripted = torch.jit.script(policy) # export to TorchScript
+        model_scripted.save("rl_model.pt") #save TorchScript model
 

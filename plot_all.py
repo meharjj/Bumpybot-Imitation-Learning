@@ -43,9 +43,9 @@ def Plot_all(Env,policy_dict,max_iter=3_000,device="cpu"):
     for k,v in policy_dict.items():
         ax.plot([x[0] for x in xs[k]],[x[1] for x in xs[k]],label=k)
     #ax.plot([x[0]+0.1*torch.rand(1).item() for x in xs['LQR']],[x[1]+0.1*torch.rand(1).item() for x in xs['LQR']],label='RL Fronteir (placeholder)')
-    ax.set(xlim=(-3,3), ylim=(-3,3))
+    ax.set(xlim=(-1,3), ylim=(-1,3))
     ax.legend()
-    ax.set(xlabel="steps (dt)(secs)",ylabel="position (m)")        
+    ax.set(xlabel="x position (m)",ylabel="y position (m)")        
     fig.set_tight_layout(True)
 
     fig_v,ax_v = plt.subplots(2)
