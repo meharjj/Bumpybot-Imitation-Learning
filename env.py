@@ -27,7 +27,9 @@ class Env:
         self.ref_vel = 0.5
         self.max_vel = 1
         self.max_avel = 1
-        self.n = 10
+        self.min_err = 0.1
+        self.max_err = 0.5
+        self.n = 1
         self.x_dim = 4
         self.u_dim = 2
         self.dt = 0.01
@@ -54,27 +56,29 @@ class Env:
 
 
         #create walls
-        wall_path_file= "./maps/L-shape.png"
-        env_c =EnvCreator.envCreator(wall_path_file,
-                                     flip= False
-                                     )
-        env_urdf = env_c.get_urdf(output_dir=".")
+        #wall_path_file= "./maps/L-shape.png"
+        #env_c =EnvCreator.envCreator(wall_path_file,
+        #                             flip= False
+        #                             )
+        #env_urdf = env_c.get_urdf(output_dir=".")
         #self.walls = p.loadURDF(env_urdf,useFixedBase=True)
         #p.changeDynamics(self.walls, -1, lateralFriction = 0.0, spinningFriction=0.0)
 
         
         #get A* path
-        start = (0,0)
-        target = (6,14)
-        filter_dist = 0.45
-        path = env_c.get_path(start,target,filter_dist) 
-        self.path = np.array([*path,path[-1]])##see code for options
+        #start = (0,0)
+        #target = (6,14)
+        #filter_dist = 0.45
+        #path = env_c.get_path(start,target,filter_dist) 
+        #self.path = np.array([*path,path[-1]])##see code for options
         #print(self.path)
         #self.path = np.array([[0,0],[0.5,0.5],[0.5,0.5],[0.5,0.5]])
        
-        path_urdf = env_c.path2urdf(output_dir=".")
-        path_asset = p.loadURDF(path_urdf,useFixedBase=True)
+        #path_urdf = env_c.path2urdf(output_dir=".")
+        #path_asset = p.loadURDF(path_urdf,useFixedBase=True)
         
+        self.path = np.array([[0,0],[0,0.5],[0,1],[0,1.5],[0,2],[0.5,2],[1,2],[1.5,2],[2,2],[2,1.5],[2,1],[2,0.5],[2,0],[1.5,0],[1,0],[0.5,0],[0,0],[0,0]])
+
         #create robot
         self.robot = p.loadURDF(
             "./robot.urdf",
@@ -90,6 +94,8 @@ class Env:
        pose,ori_q=p.getBasePositionAndOrientation(self.robot)
        vel,avel= p.getBaseVelocity(self.robot)
        ori=Q2E(ori_q)[2]
+       ori_to_next = np.arctan2(self.path[self.idx+1,0] - pose[0],self.path[self.idx+1,1]-pose[1])
+       #print(ori_to_next)
        if self.check_waypoints(pose[:2],self.path,self.idx):
            self.idx += 1
        #print(ori)
@@ -98,7 +104,7 @@ class Env:
        #print(target)
 
        diff= target-pose[:2]
-       diff_vel = self.ref_vel - np.array(vel[:2]) 
+       diff_vel = np.array([np.sin(ori_to_next),np.cos(ori_to_next)])*self.ref_vel - np.array(vel[:2]) 
        theta = np.arctan2(diff[0],diff[1])
        #theta = theta*180/np.pi
        #print(theta)
@@ -126,7 +132,7 @@ class Env:
         R = m2 * robot[0] + b2 - robot[1]
         W = m2 * path[idx-1,0] + b2 - path[idx-1,1]
 
-        return np.sign(R) != np.sign(W) #increment if the robot is past the waypoint
+        return (np.linalg.norm(robot-path[idx]) < self.min_err) or (np.sign(R) != np.sign(W) and np.linalg.norm(robot-path[idx]) < self.max_err) #increment if the robot is past the waypoint
 
 
     def get_rewards(self):

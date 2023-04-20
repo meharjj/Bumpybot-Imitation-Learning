@@ -36,7 +36,7 @@ Q = torch.diag(torch.tensor([35,35,1,1])).to(torch.float)
 R = torch.eye(2)*100
 
 class ExpertLQR(torch.nn.Module):
-    def __init__(self,A=A, B=B, Q=Q, R=R, H=0.8, dt=0.01, dvel=1 ):
+    def __init__(self,A=A, B=B, Q=Q, R=R, H=0.8, dt=0.01, dvel=1 ,device='cpu'):
         super(ExpertLQR, self).__init__()
         self.A = A
         self.B = B
@@ -46,6 +46,7 @@ class ExpertLQR(torch.nn.Module):
         self.dt = dt
         self.dvel = dvel
         self.K = lqr( self.A, self.B, self.Q, self.R, self.H, self.dt)
+        self.device = device
         
     def forward(self,x):
         
@@ -60,7 +61,7 @@ class ExpertLQR(torch.nn.Module):
         #for i in range(len(self.K)):
         #    u[i] =  -self.K[i] @ x_ [i]
         #    x_[i+1] = A @ x_[i] + B @ u[i]
-        u_star = -self.K[0] @ x 
+        u_star = -self.K[0].to(self.device) @ x 
         return u_star #,x_, self.K 
     
     def get_K(self):

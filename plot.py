@@ -12,6 +12,7 @@ def Plot(Env,expert,policy,max_iter=10_000,device="cpu"):
 
     expert = expert.to(device)
     policy = policy.to(device)
+    expert.device = device
 
     x_data = []
     u_data = []

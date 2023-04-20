@@ -21,16 +21,20 @@ class beta(torch.nn.Module):
         return self.fn(i)
 
 def get_validation_data(env,controller,steps=1_000, device="cpu"):
-    x_data = torch.zeros(steps,env.x_dim)
+    x_data = torch.zeros(steps,env.x_dim,device=device)
 
-    u_data = torch.zeros(steps,env.u_dim)
+    u_data = torch.zeros(steps,env.u_dim,device=device)
     
     x = env.reset()
     for i in range(0,steps,env.n):
-        u = controller(x)
-        x_data[i:i+env.n] = x.view(-1,env.x_dim)
+        u = controller(x.to(device))
+        x_data[i:i+env.n] = x.view(-1,env.x_dim).to(device)
         u_data[i:i+env.n] = u.view(-1,env.u_dim)
-        x,_,_,_,_ = env.step(u)
+        x,_,done,_,_ = env.step(u)
+        if done:
+            x_data = x_data[:i+env.n]
+            u_data = u_data[:i+env.n]
+            break
     return torch.utils.data.TensorDataset(x_data[:i+env.n],u_data[:i+env.n]) #cut off trailing zeros, make dataset
 
 def train(dataset,net,loss_cls=torch.nn.MSELoss,opt_fn=torch.optim.Adam,device="cpu"):
@@ -58,7 +62,7 @@ def evaluate(dataset,net,loss_cls=torch.nn.MSELoss,device="cpu"):
 
 def DAgger(Env,Expert,Policy,Beta=beta,Beta_fn=exp_decay,N=100,T=500,num_envs=10,plot=True,export=True,device="cpu"):
     env = Env(True)
-    expert = Expert().to(device)
+    expert = Expert(device=device).to(device)
     net = Policy().to(device)
     beta = Beta(Beta_fn).to(device)
     v_dataset = get_validation_data(env,expert,device=device)
@@ -75,19 +79,22 @@ def DAgger(Env,Expert,Policy,Beta=beta,Beta_fn=exp_decay,N=100,T=500,num_envs=10
         u_data = torch.zeros(T,env.u_dim,device=device)
         for t in range(0,T,env.n):
             with torch.no_grad():
-                u_star = expert(x)
+                u_star = expert(x.to(device))
                 if b == 1:
                     u = u_star
                 elif b == 0:
-                    u = net(x)
+                    u = net(x.to(device))
                 else:
-                    u = b*u_star + (1-b)*net(x)
-            x_data[t:t+env.n] = x.view(-1,env.x_dim)
+                    u = b*u_star + (1-b)*net(x.to(device))
+            x_data[t:t+env.n] = x.view(-1,env.x_dim).to(device)
             u_data[t:t+env.n] = u_star.view(-1,env.u_dim)
             x,_,done,_,_ = env.step(u)
+            #print(u)
+            #print(t)
             if done:
                 x_data = x_data[:t+env.n] 
-                u_data = u_data[:t+env.n] 
+                u_data = u_data[:t+env.n]
+                print("completed environment.")
                 break
         data = torch.utils.data.TensorDataset(x_data[:t+env.n],u_data[:t+env.n])
         if i == 1:
@@ -114,7 +121,15 @@ def DAgger(Env,Expert,Policy,Beta=beta,Beta_fn=exp_decay,N=100,T=500,num_envs=10
             best_loss = val_loss
             best_model = deepcopy(net)
 
-        if len(val_losses) > 10 and avg_val_losses[-1] < 0.05:
+        
+        net.train(False)
+        print("saving model...")
+        model_scripted = torch.jit.script(net)
+        model_scripted.save("il_model.pt")
+        net.train(True)
+
+
+        if len(val_losses) > 10 and avg_val_losses[-1] < 0.001:
             # train at least 10 epochs
             # stop if average of last 5 epochs are less than 5% error
             print("Stopping Early.")
@@ -136,7 +151,7 @@ def DAgger(Env,Expert,Policy,Beta=beta,Beta_fn=exp_decay,N=100,T=500,num_envs=10
 
     best_model.train(False) # set model to evaluation mode
     model_scripted = torch.jit.script(best_model) # export to TorchScript
-    model_scripted.save("il_model.pt") #save TorchScript model
+    model_scripted.save("best_il_model.pt") #save TorchScript model
 
     if export:
         x = env.reset()

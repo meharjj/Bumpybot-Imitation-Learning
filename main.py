@@ -8,7 +8,7 @@ from DAgger import DAgger, beta, exp_decay, indicator
 ## DAgger params
 beta_fn = exp_decay
 N = 100 # epochs
-T = 10000 # 30000 iterations per epoch
+T = 3000 # 30000 iterations per epoch
 num_envs = 1
 plot = True
 export = True
