@@ -38,7 +38,7 @@ def collect_rollout(env, policy, n_steps, rollout, device=device):
         next_obs, rewards, terms, truncs, infos = env.step(actions)
 
         rollout["rewards"][step] = rewards
-        rollout["terms"][step] = terms
+        rollout["terms"][step] = terms.to(torch.float)
         """ for k, v in rollout.items(): 
             print(v.size())
         assert False  """   
@@ -52,15 +52,22 @@ def collect_rollout(env, policy, n_steps, rollout, device=device):
         end_step = step
     return rollout, total_episodic_return, end_step
 
-def bootstrap_value(rollout, end_step, gamma=0.99, device=device):
+def bootstrap_value(rollout, end_step, gamma=0.99, gae_lambda=0.95,device=device):
     rollout["advantages"] = torch.zeros_like(rollout["rewards"], device=device)
+    value = rollout["values"][-1]
     for t in reversed(range(end_step)):
+        if t == end_step-1:
+            next_not_done = 1-rollout["terms"][-1]
+            next_val = value
+        else:
+            next_not_done = 1-rollout["terms"][t + 1]
+            next_val = rollout["values"][t + 1]
         delta = (
             rollout["rewards"][t]
-            + gamma * rollout["values"][t + 1] * rollout["terms"][t + 1]
+            + gamma * next_val * next_not_done
             - rollout["values"][t]
             )
-        rollout["advantages"][t] = delta + gamma * gamma * rollout["advantages"][t + 1]
+        rollout["advantages"][t] = delta + gamma * gae_lambda * next_not_done * rollout["advantages"][t + 1]
         rollout["returns"] = rollout["advantages"] + rollout["values"]
     return rollout
 
@@ -75,7 +82,7 @@ def batchify(end_step, rollout):
     #assert False
     return rollout
 
-def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_coef=0.2, ent_coef=0.1, vf_coef=0.1,device=device):
+def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_coef=0.3, ent_coef=0.0, vf_coef=0.5,max_grad_norm=0.5,device=device):
     updates = 0
     batched_rollout = batchify(end_step, rollout)
     
@@ -130,6 +137,7 @@ def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_co
 
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm(policy.parameters(),max_grad_norm)
             optimizer.step()
 
             updates += batch_size
@@ -139,7 +147,7 @@ def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_co
     return updates
         
 def PPO(env, policy, optimizer, max_steps, epochs, batch_size, n_steps=10_000,
-    vec_obs_size=4, loss_coef=0.1, ent_coef=0.1, vf_coef=0.1, clip_coef=0.2, gamma=0.99, device=device):
+    vec_obs_size=4, loss_coef=0.1, ent_coef=0.0, vf_coef=0.5, clip_coef=0.3, gamma=0.99, gae_lambda=0.95,max_grad_norm=0.5,device=device):
     total_steps = 0
     best_rewards = 0
     while total_steps < max_steps:
@@ -158,7 +166,7 @@ def PPO(env, policy, optimizer, max_steps, epochs, batch_size, n_steps=10_000,
         print("Collectiing Rollout:")
         with torch.no_grad():
             rollout, total_episodic_return, end_step = collect_rollout(env, policy, n_steps, rollout, device)
-            rollout = bootstrap_value(rollout, end_step, gamma, device)
+            rollout = bootstrap_value(rollout, end_step, gamma, gae_lambda, device)
         
         if end_step < batch_size/10:
             print("Skipping Early Termination...\n")
@@ -166,7 +174,7 @@ def PPO(env, policy, optimizer, max_steps, epochs, batch_size, n_steps=10_000,
         print("Episode Length: {}\n".format(end_step+1))
         
         print("Training for {} Epochs".format(epochs))
-        total_steps += train(env, policy, optimizer, batch_size, epochs, end_step, rollout,device=device)
+        total_steps += train(env, policy, optimizer, batch_size, epochs, end_step, rollout,max_grad_norm=max_grad_norm,device=device)
         if torch.sum(rollout["rewards"]).item()/end_step > best_rewards:
             print("saving new best model: {}".format(torch.sum(rollout["rewards"]).item()/end_step))
             best_rewards = torch.sum(rollout["rewards"]).item()/end_step

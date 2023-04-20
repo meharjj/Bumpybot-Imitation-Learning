@@ -12,18 +12,21 @@ class Policy(torch.nn.Module):
         self.value_head = torch.nn.Sequential(
             torch.nn.Linear(layer_sizes[-1],1)
             )
-        self.sigma = torch.nn.Parameter(0.01*torch.ones(out_size,requires_grad=False,dtype = torch.float32),requires_grad =False)
+        self.logstd= torch.nn.Parameter(torch.zeros(out_size,requires_grad=True,dtype = torch.float32),requires_grad=True)
+    
+
     def layer(self,in_f,out_f,activation):
         return torch.nn.Sequential(torch.nn.Linear(in_f,out_f),activation())
 
     def forward(self,x):
         #channel first: x [N,4]
         return self.action_head(self.backbone(x)) #[N,2]
+
     def get_action_and_value(self,obs, action=None):
         #print(obs.size())
         mu = self.action_head(self.backbone(obs))
         
-        covar = self.sigma #torch.diag
+        covar = torch.exp(self.logstd(obs).expand_as(mu))
         #print(covar)
         dist = torch.distributions.normal.Normal(mu,covar)
         if action is None:
