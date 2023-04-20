@@ -138,10 +138,15 @@ class Env:
     def get_rewards(self):
         #contact_reward = 0 if self.in_contact else 1
         #heading_rew = 1/(1+self.theta))
-        target_rew = 1/(1+self.obs[0])+  1/(1+self.obs[1])
-        vel_rew = 1/(1+self.obs[2]) + 1/(1+self.obs[3])
-        control_rew = 1/(1+self.force[0]/self.mass) + 1/(1+self.force[1]/self.mass)
-        reward = (target_rew + vel_rew + control_rew)/6
+        #print(self.obs)
+        target_rew = 1/(1+abs(self.obs[0]))+  1/(1+abs(self.obs[1]))
+        #print(target_rew)
+        vel_rew = 1/(1+abs(self.obs[2])) + 1/(1+abs(self.obs[3]))
+        #print(vel_rew)
+        control_rew = 0#1/(1+abs(self.force[0])/self.mass) + 1/(1+abs(self.force[1])/self.mass)
+        #print(self.force)
+        #print(control_rew)
+        reward = (target_rew + vel_rew + control_rew)/4
         return reward 
 
     def step(self, action): # action[zero] is the desired velocity and action[one] is the desired heading 

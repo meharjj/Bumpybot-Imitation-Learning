@@ -2,7 +2,7 @@
 import torch
 
 class Policy(torch.nn.Module):
-    def __init__(self,layers=[64,32,16],in_size=6,out_size=2,activation=torch.nn.ELU):
+    def __init__(self,layers=[64,32,16],in_size=4,out_size=2,activation=torch.nn.ELU):
         super(Policy, self).__init__()
         layer_sizes = [in_size,*layers]
         linear_layers = [self.layer(in_f,out_f,activation) for in_f,out_f in zip(layer_sizes,layer_sizes[1:])]

@@ -39,10 +39,13 @@ def Plot_all(Env,policy_dict,max_iter=3_000,device="cpu"):
 
     fig,ax = plt.subplots()
     fig.suptitle("Trajectory")
+    ax.plot(envs['LQR'].path[:,0],envs['LQR'].path[:,1],c='k',linewidth=4,label='Ground Truth')
     for k,v in policy_dict.items():
         ax.plot([x[0] for x in xs[k]],[x[1] for x in xs[k]],label=k)
+    #ax.plot([x[0]+0.1*torch.rand(1).item() for x in xs['LQR']],[x[1]+0.1*torch.rand(1).item() for x in xs['LQR']],label='RL Fronteir (placeholder)')
     ax.set(xlim=(-3,3), ylim=(-3,3))
     ax.legend()
+    ax.set(xlabel="steps (dt)(secs)",ylabel="position (m)")        
     fig.set_tight_layout(True)
 
     fig_v,ax_v = plt.subplots(2)
@@ -53,8 +56,10 @@ def Plot_all(Env,policy_dict,max_iter=3_000,device="cpu"):
         ax_v[1].plot([x[3] for x in xs[k]],label='{} vy'.format(k))
     ax_v[0].set(ylim=(-1,1))
     ax_v[0].legend()
+    ax_v[0].set(ylabel="velocity (m/s)")
     ax_v[1].set(ylim=(-1,1))
     ax_v[1].legend()
+    ax_v[1].set(xlabel="steps (dt)(secs)",ylabel="velocity (m/s")
     fig_v.set_tight_layout(True)
 
     fig_u,ax_u = plt.subplots(2)
@@ -65,6 +70,7 @@ def Plot_all(Env,policy_dict,max_iter=3_000,device="cpu"):
         ax_u[1].plot([u[1] for u in us[k]],label='{} uy'.format(k))
     ax_u[0].legend()
     ax_u[1].legend()
+    ax_u[1].set(xlabel="steps (dt)(secs)",ylabel="control effort (N/kg)")
     fig_u.set_tight_layout(True)
 
     plt.show()
@@ -74,8 +80,9 @@ if __name__ == '__main__':
     from expertlqr import ExpertLQR
     from Pytorch_wrapper import Expert
     expert = ExpertLQR()
-    best_il = Expert('best_il_model.pt')
+    #rl = Expert('rl__model.pt')
     il = Expert('il_model.pt')
-    policy_dict = {'LQR':expert,'il':il,'best_il':best_il}
+    #rl_il = Expert('rl_il_model.pt')
+    policy_dict = {'LQR':expert,'IL-LQR':il}#,'IL-RL':rl_il,'RL':rl}
     Plot_all(Env,policy_dict)
 

@@ -5,7 +5,7 @@ from expertlqr import ExpertLQR
 if __name__=="__main__":
     env=Env(False)
     ob=env.reset()
-    expert= Expert("il_model.pt").to("cpu")
+    expert= Expert("rl_model.pt").to("cpu")
     #expert = ExpertLQR()
     import time
 

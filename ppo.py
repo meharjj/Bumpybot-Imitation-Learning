@@ -25,9 +25,8 @@ def collect_rollout(env, policy, n_steps, rollout, device=device):
 
     for step in range(0, n_steps):
         obs = torch_obs(next_obs, device)
-       
-  
-        actions, logprobs, _, values = policy.get_action_and_value(obs)
+        
+        actions, logprobs, _, values = policy.get_action_and_value(obs.to(device))
         #print(actions)
         #rollout["obs_img"][step] = obs[0]
         rollout["obs_vec"][step] = obs
@@ -44,7 +43,7 @@ def collect_rollout(env, policy, n_steps, rollout, device=device):
             print(v.size())
         assert False  """   
         total_episodic_return += rollout["rewards"][step].cpu()
-        if torch.sum(terms).item():
+        if terms:
 
         #if any([terms[a] for a in terms]) or any([truncs[a] for a in truncs]):
             end_step = step
@@ -76,7 +75,7 @@ def batchify(end_step, rollout):
     #assert False
     return rollout
 
-def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_coef=0.2, ent_coef=0.1, vf_coef=0.1):
+def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_coef=0.2, ent_coef=0.1, vf_coef=0.1,device=device):
     updates = 0
     batched_rollout = batchify(end_step, rollout)
     
@@ -90,7 +89,7 @@ def train(env, policy, optimizer, batch_size, epochs, end_step, rollout, clip_co
             batch_index = b_index[start:end]
 
             _, newlogprob, entropy, value = policy.get_action_and_value(
-                    (batched_rollout["obs_vec"][batch_index]), batched_rollout["actions"].long()[batch_index])
+                    (batched_rollout["obs_vec"][batch_index].to(device)), batched_rollout["actions"].long()[batch_index].to(device))
             logratio = newlogprob - batched_rollout["logprobs"][batch_index]
             ratio = logratio.exp()
 
@@ -167,7 +166,7 @@ def PPO(env, policy, optimizer, max_steps, epochs, batch_size, n_steps=10_000,
         print("Episode Length: {}\n".format(end_step+1))
         
         print("Training for {} Epochs".format(epochs))
-        total_steps += train(env, policy, optimizer, batch_size, epochs, end_step, rollout)
+        total_steps += train(env, policy, optimizer, batch_size, epochs, end_step, rollout,device=device)
         if torch.sum(rollout["rewards"]) > best_rewards:
             best_rewards = torch.sum(rollout["rewards"])
             best_model = deepcopy(policy)
