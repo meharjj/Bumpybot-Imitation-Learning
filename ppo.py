@@ -38,7 +38,7 @@ def collect_rollout(env, policy, n_steps, rollout, device=device):
         next_obs, rewards, terms, truncs, infos = env.step(actions)
 
         rollout["rewards"][step] = rewards
-        rollout["terms"][step] = terms.to(torch.float)
+        rollout["terms"][step] = float(terms)
         """ for k, v in rollout.items(): 
             print(v.size())
         assert False  """   

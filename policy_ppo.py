@@ -26,7 +26,7 @@ class Policy(torch.nn.Module):
         #print(obs.size())
         mu = self.action_head(self.backbone(obs))
         
-        covar = torch.exp(self.logstd(obs).expand_as(mu))
+        covar = torch.exp(self.logstd.expand_as(mu))
         #print(covar)
         dist = torch.distributions.normal.Normal(mu,covar)
         if action is None:
