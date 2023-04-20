@@ -91,21 +91,21 @@ class Env:
 
 
     def get_obs(self):
-       pose,ori_q=p.getBasePositionAndOrientation(self.robot)
-       vel,avel= p.getBaseVelocity(self.robot)
+       self.pose,ori_q=p.getBasePositionAndOrientation(self.robot)
+       self.vel,avel= p.getBaseVelocity(self.robot)
        ori=Q2E(ori_q)[2]
-       ori_to_next = np.arctan2(self.path[self.idx+1,0] - pose[0],self.path[self.idx+1,1]-pose[1])
+       ori_to_next = np.arctan2(self.path[self.idx+1,0] - self.pose[0],self.path[self.idx+1,1]-self.pose[1])
        #print(ori_to_next)
-       if self.check_waypoints(pose[:2],self.path,self.idx):
+       if self.check_waypoints(self.pose[:2],self.path,self.idx):
            self.idx += 1
        #print(ori)
        #print(self.idx)
        target = self.path[self.idx]
        #print(target)
 
-       diff= target-pose[:2]
-       diff_vel = np.array([np.sin(ori_to_next),np.cos(ori_to_next)])*self.ref_vel - np.array(vel[:2]) 
-       theta = np.arctan2(diff[0],diff[1])
+       diff= target-self.pose[:2]
+       diff_vel = np.array([np.sin(ori_to_next),np.cos(ori_to_next)])*self.ref_vel - np.array(self.vel[:2]) 
+       self.theta = np.arctan2(diff[0],diff[1])
        #theta = theta*180/np.pi
        #print(theta)
        #vel,avel= p.getBaseVelocity(self.robot)
@@ -136,14 +136,16 @@ class Env:
 
 
     def get_rewards(self):
-        contact_reward = 0 if self.in_contact else 1
-        heading_rew = 1/(1+self.obs[2])
+        #contact_reward = 0 if self.in_contact else 1
+        #heading_rew = 1/(1+self.theta))
         target_rew = 1/(1+self.obs[0])+  1/(1+self.obs[1])
-        reward = (contact_reward + heading_rew+ target_rew)/4
+        vel_rew = 1/(1+self.obs[2]) + 1/(1+self.obs[3])
+        control_rew = 1/(1+self.force[0]/self.mass) + 1/(1+self.force[1]/self.mass)
+        reward = (target_rew + vel_rew + control_rew)/6
         return reward 
 
     def step(self, action): # action[zero] is the desired velocity and action[one] is the desired heading 
-       self.in_contact = 0
+       #self.in_contact = 0
        """
        print(action)
        fd = torch.linalg.norm(action).item()
@@ -173,8 +175,8 @@ class Env:
        #print(force)
        
        """
-       
-       p.applyExternalForce(self.robot,-1,[self.mass*action[0],self.mass*action[1],0],[0,0,0],p.LINK_FRAME)
+       self.force = [self.mass*action[0],self.mass*action[1],0]
+       p.applyExternalForce(self.robot,-1,self.force,[0,0,0],p.LINK_FRAME)
        
        self.client.stepSimulation()
      

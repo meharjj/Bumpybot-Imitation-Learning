@@ -1,4 +1,4 @@
-from Reinforcement import PPO 
+from ppo import PPO 
 from env import Env
 from policy import Policy
 import torch 
@@ -7,7 +7,7 @@ env = Env(headless = True)
 totel_steps = 10000000
 batch_size = 100
 epochs = 10 
-obs_size = 3
+obs_size = 4 
 n_steps = 1000
 learning_rate = 0.001
 

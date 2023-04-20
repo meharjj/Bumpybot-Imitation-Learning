@@ -1,7 +1,7 @@
 import torch
 
 class Expert(torch.nn.Module):
-    def __init__(self,model_name="rl_best_model.pt"):
+    def __init__(self,model_name="il_model.pt"):
         super(Expert, self).__init__()
         self.model = torch.jit.load(model_name)
         self.model.eval()

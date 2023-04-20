@@ -12,6 +12,7 @@ if torch.cuda.is_available():
 #    device = torch.device("mps")
 else:
     device = torch.device("cpu")
+print('device is {}'.format(device))
 
 def torch_obs(ob, device=device):
     ## TODO
